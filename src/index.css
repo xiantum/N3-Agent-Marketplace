@@ -1,0 +1,56 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800&family=Prompt:wght@300;400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Noto Sans Thai", ui-sans-serif, system-ui, sans-serif;
+  --font-prompt: "Prompt", sans-serif;
+
+  --color-primary: #004ca3;
+  --color-primary-container: #0b63ce;
+  --color-on-primary-container: #dde6ff;
+  --color-on-primary: #ffffff;
+  --color-secondary: #775a00;
+  --color-secondary-container: #ffc72c;
+  --color-on-secondary-container: #6f5400;
+  --color-tertiary: #005c22;
+  --color-tertiary-container: #00772f;
+  --color-on-tertiary-container: #84ff97;
+  --color-deep-navy: #062B72;
+  --color-bright-blue: #1684F8;
+  --color-gold: #F5A400;
+  --color-customer-bg: #EAF4FF;
+  --color-agent-bg: #E8F8EE;
+  --color-border-soft: #D9E6F8;
+
+  --color-surface-container-low: #eff4ff;
+  --color-surface-container-highest: #d3e4fe;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #f8f9ff;
+  color: #0b1c30;
+}
+
+/* Custom styles for professional appearance */
+.brand-gradient {
+  background: linear-gradient(135deg, #004ca3 0%, #1684F8 100%);
+}
+
+.agent-gradient {
+  background: linear-gradient(135deg, #005c22 0%, #22C55E 100%);
+}
+
+.gold-gradient {
+  background: linear-gradient(135deg, #F5A400 0%, #ffc72c 100%);
+}
+
+.squishy-active {
+  transition: transform 0.1s ease-out, opacity 0.1s ease-out;
+}
+
+.squishy-active:active {
+  transform: scale(0.96);
+  opacity: 0.9;
+}
+

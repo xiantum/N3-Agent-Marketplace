@@ -1,0 +1,6 @@
+{
+  "name": "N3 Agent Marketplace",
+  "description": "A role-based high-fidelity prototype for N3 Agent Marketplace featuring Customer, Agent, and Admin perspectives with an accessible senior-friendly Thai UI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
