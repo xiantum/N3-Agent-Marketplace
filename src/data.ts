@@ -19,7 +19,7 @@ import {
 
 export const mockUsers: User[] = [
   { id: 'u1', name: 'คุณนลินี รักดี', role: 'customer' },
-  { id: 'u2', name: 'คุณเจ๊นุช บางใหญ่', role: 'agent' },
+  { id: 'u2', name: 'คุณเจ๊แมว บางใหญ่', role: 'agent' },
   { id: 'u3', name: 'แอดมิน สมชาย', role: 'admin' }
 ];
 
@@ -57,8 +57,8 @@ export const mockCustomersEntityList: Customer[] = [
 export const mockAgentsEntityList: Agent[] = [
   {
     agentId: 'AG-001245',
-    shopName: 'ร้านเจ๊นุช N3',
-    ownerName: 'คุณเจ๊นุช บางใหญ่',
+    shopName: 'ร้านเจ๊แมว N3',
+    ownerName: 'คุณเจ๊แมว บางใหญ่',
     package: 'Pro',
     quotaTotal: 5000,
     quotaRemaining: 3820,
@@ -218,7 +218,7 @@ export const mockAddons: AddOnService[] = mockAddOnServicesList;
 export const mockShops: Shop[] = [
   {
     shopId: 'shop1',
-    shopName: 'ร้านเจ๊นุช N3',
+    shopName: 'ร้านเจ๊แมว N3',
     rating: 4.9,
     verified: true,
     packageBadge: 'Pro',
@@ -227,11 +227,11 @@ export const mockShops: Shop[] = [
     
     // Legacy fields
     id: 'shop1',
-    name: 'ร้านเจ๊นุช N3',
+    name: 'ร้านเจ๊แมว N3',
     address: 'บางใหญ่ นนทบุรี (ใกล้เซ็นทรัลเวสต์เกต)',
     phone: '089-124-5124',
-    logo: 'https://images.unsplash.com/photo-1601597111158-2fceff270190?auto=format&fit=crop&q=80&w=120',
-    coverImage: 'https://images.unsplash.com/photo-1601597111158-2fceff270190?auto=format&fit=crop&q=80&w=600',
+    logo: '/src/assets/images/shop_je_maew_n3_1783428973348.jpg',
+    coverImage: '/src/assets/images/shop_je_maew_n3_1783428973348.jpg',
     reviewsCount: 148,
     isVerified: true,
     isOpen: true,
@@ -254,8 +254,8 @@ export const mockShops: Shop[] = [
     name: 'ตัวแทนสมชาย N3',
     address: 'เมืองนนทบุรี (ตรงข้ามตลาดนนท์)',
     phone: '081-568-1568',
-    logo: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=120',
-    coverImage: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600',
+    logo: '/src/assets/images/agent_somchai_n3_1783428993485.jpg',
+    coverImage: '/src/assets/images/agent_somchai_n3_1783428993485.jpg',
     reviewsCount: 92,
     isVerified: true,
     isOpen: true,
@@ -278,8 +278,8 @@ export const mockShops: Shop[] = [
     name: 'บ้านสลาก N3',
     address: 'ปากเกร็ด นนทบุรี (ห้าแยกปากเกร็ด)',
     phone: '082-104-2104',
-    logo: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=120',
-    coverImage: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=600',
+    logo: '/src/assets/images/baan_salak_n3_1783429016509.jpg',
+    coverImage: '/src/assets/images/baan_salak_n3_1783429016509.jpg',
     reviewsCount: 65,
     isVerified: true,
     isOpen: true,
@@ -413,8 +413,8 @@ export const mockShops: Shop[] = [
 export const mockOrders: Order[] = [
   {
     id: 'TXN-N3-1004',
-    shopName: 'ร้านเจ๊นุช N3',
-    shopImage: 'https://images.unsplash.com/photo-1601597111158-2fceff270190?auto=format&fit=crop&q=80&w=120',
+    shopName: 'ร้านเจ๊แมว N3',
+    shopImage: '/src/assets/images/shop_je_maew_n3_1783428973348.jpg',
     date: 'วันนี้ • 14:20',
     amount: 160,
     itemsCount: 1,
@@ -424,7 +424,7 @@ export const mockOrders: Order[] = [
   {
     id: 'TXN-N3-1003',
     shopName: 'ตัวแทนสมชาย N3',
-    shopImage: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=120',
+    shopImage: '/src/assets/images/agent_somchai_n3_1783428993485.jpg',
     date: 'วันนี้ • 09:45',
     amount: 320,
     itemsCount: 2,
@@ -434,7 +434,7 @@ export const mockOrders: Order[] = [
   {
     id: 'TXN-N3-1002',
     shopName: 'บ้านสลาก N3',
-    shopImage: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=120',
+    shopImage: '/src/assets/images/baan_salak_n3_1783429016509.jpg',
     date: '1 ก.ค. 2026 • 11:00',
     amount: 80,
     itemsCount: 1,
@@ -506,8 +506,8 @@ export const mockPackages: SubscriptionPackage[] = [
 export const mockApprovals: ApprovalRequest[] = [
   {
     id: 'app1',
-    name: 'คุณเจ๊นุช บางใหญ่',
-    image: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=120',
+    name: 'คุณเจ๊แมว บางใหญ่',
+    image: '/src/assets/images/shop_je_maew_n3_1783428973348.jpg',
     type: 'register',
     typeText: 'สมัครลงทะเบียนเป็นตัวแทนจำหน่าย N3',
     level: 'Gold Agent'
@@ -532,11 +532,11 @@ export const mockCustomerProfile: CustomerProfile = {
 };
 
 export const mockAgentProfile: AgentProfile = {
-  name: 'คุณเจ๊นุช บางใหญ่',
-  shopName: 'ร้านเจ๊นุช N3',
-  image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150',
+  name: 'คุณเจ๊แมว บางใหญ่',
+  shopName: 'ร้านเจ๊แมว N3',
+  image: '/src/assets/images/shop_je_maew_n3_1783428973348.jpg',
   phone: '089-124-5124',
-  email: 'januch.n3@n3agent.com',
+  email: 'jamaew.n3@n3agent.com',
   quotaRemaining: 3820,
   salesToday: 42500,
   totalCustomers: 542,
@@ -548,7 +548,7 @@ export const mockNotifications: NotificationItem[] = [
   {
     id: 'n1',
     title: 'คำสั่งซื้อสิทธิ์ของท่านได้รับการบันทึกแล้ว',
-    content: 'รายการจองสิทธิ์จำลองผ่าน "ร้านเจ๊นุช N3" ได้รับการบันทึกเข้าระบบแล้ว รอการยืนยันโควตา',
+    content: 'รายการจองสิทธิ์จำลองผ่าน "ร้านเจ๊แมว N3" ได้รับการบันทึกเข้าระบบแล้ว รอการยืนยันโควตา',
     date: 'วันนี้ • 10:30',
     isRead: false
   },

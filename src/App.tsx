@@ -43,9 +43,121 @@ const SUGGESTIONS = {
   trending: ['999', '007', '911', '777', '123', '112', '889', '234']
 };
 
+const initialAgentAccounts = [
+  {
+    id: 'AG-001245',
+    name: 'คุณเจ๊แมว บางใหญ่',
+    email: 'jamaew.n3@n3agent.com',
+    phone: '089-123-5124',
+    password: '123456',
+    shopName: 'ร้านเจ๊แมว N3',
+    area: 'บางใหญ่, นนทบุรี',
+    hours: 'เปิดบริการทุกวัน 07:00 - 21:00 น.',
+    shopPhone: '089-124-5124',
+    desc: 'ศูนย์รวมสลากกินแบ่งและเลข N3 แท้ 100% จัดส่งรวดเร็ว ปลอดภัย ได้โควตาตรงจากรัฐบาล มั่นใจบริการเป็นกันเอง',
+    status: 'Approved',
+    level: 'Pro',
+    submittedAt: '2026-07-01 10:00',
+    notes: '',
+    documents: {
+      idCard: 'uploaded',
+      idCardWithFace: 'uploaded',
+      agentLicense: 'uploaded',
+      shopPhoto: 'uploaded',
+    }
+  },
+  {
+    id: 'AG-001246',
+    name: 'ตัวแทนสมชาย นนทบุรี',
+    email: 'somchai.n3@n3agent.com',
+    phone: '088-222-3333',
+    password: '123456',
+    shopName: 'ตัวแทนสมชาย N3',
+    area: 'เมืองนนทบุรี (ตรงข้ามตลาดนนท์)',
+    hours: 'เปิดบริการทุกวัน 08:00 - 20:00 น.',
+    shopPhone: '081-568-1568',
+    desc: 'ตัวแทนจำหน่ายหวย N3 ประจำพื้นที่เมืองนนทบุรี บริการประทับใจ ซื่อสัตย์ รวดเร็ว',
+    status: 'Pending Review',
+    level: 'Basic',
+    submittedAt: '2026-07-07 09:30',
+    notes: '',
+    documents: {
+      idCard: 'uploaded',
+      idCardWithFace: 'uploaded',
+      agentLicense: 'uploaded',
+      shopPhoto: 'uploaded',
+    }
+  },
+  {
+    id: 'AG-001247',
+    name: 'บ้านสลาก ปากเกร็ด',
+    email: 'baansalak.n3@n3agent.com',
+    phone: '087-111-2222',
+    password: '123456',
+    shopName: 'บ้านสลาก N3',
+    area: 'ปากเกร็ด นนทบุรี (ห้าแยกปากเกร็ด)',
+    hours: 'เปิดบริการทุกวัน 06:00 - 22:00 น.',
+    shopPhone: '082-104-2104',
+    desc: 'บ้านสลาก N3 จุดรับจองและจำหน่ายสลากดิจิทัล มีบอร์ดเลขเด็ดให้เลือกชม',
+    status: 'Need More Info',
+    level: 'Basic',
+    submittedAt: '2026-07-06 15:45',
+    notes: 'รูปเอกสารไม่ชัดเจน กรุณาอัปโหลดใหม่อีกครั้ง',
+    documents: {
+      idCard: 'uploaded',
+      idCardWithFace: 'need_edit',
+      agentLicense: 'uploaded',
+      shopPhoto: 'uploaded',
+    }
+  }
+];
+
 export default function App() {
   // User Role state: null | 'customer' | 'agent' | 'admin'
   const [currentRole, setCurrentRole] = useState<'customer' | 'agent' | 'admin' | null>(null);
+
+  // Agent accounts state
+  const [agentAccounts, setAgentAccounts] = useState<any[]>(() => {
+    const saved = localStorage.getItem('n3_agent_accounts');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        // Fallback
+      }
+    }
+    return initialAgentAccounts;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('n3_agent_accounts', JSON.stringify(agentAccounts));
+  }, [agentAccounts]);
+
+  // Logged in agent state
+  const [loggedInAgentPhone, setLoggedInAgentPhone] = useState<string | null>(() => {
+    return localStorage.getItem('n3_logged_in_agent_phone');
+  });
+
+  useEffect(() => {
+    if (loggedInAgentPhone) {
+      localStorage.setItem('n3_logged_in_agent_phone', loggedInAgentPhone);
+    } else {
+      localStorage.removeItem('n3_logged_in_agent_phone');
+    }
+  }, [loggedInAgentPhone]);
+
+  const handleUpdateAgentStatus = (phone: string, newStatus: string, notes?: string) => {
+    setAgentAccounts(prev => prev.map(acc => {
+      if (acc.phone === phone) {
+        return {
+          ...acc,
+          status: newStatus,
+          notes: notes !== undefined ? notes : (acc.notes || '')
+        };
+      }
+      return acc;
+    }));
+  };
 
   // Navigation Screens state
   const [currentScreen, setCurrentScreen] = useState<
@@ -62,7 +174,7 @@ export default function App() {
   };
 
   // Selected entities state
-  const [selectedShop, setSelectedShop] = useState<Shop>(mockShops[0]); // Default to first shop (ร้านเจ๊นุช N3)
+  const [selectedShop, setSelectedShop] = useState<Shop>(mockShops[0]); // Default to first shop (ร้านเจ๊แมว N3)
   const [orders, setOrders] = useState<Order[]>(mockOrders);
   
   // Selected digit state (null or string '0'-'9')
@@ -292,6 +404,10 @@ export default function App() {
     return (
       <AgentView 
         onBackToRoles={goToRoleSelection} 
+        agentAccounts={agentAccounts}
+        onUpdateAgentAccounts={setAgentAccounts}
+        loggedInAgentPhone={loggedInAgentPhone}
+        onSetLoggedInAgentPhone={setLoggedInAgentPhone}
       />
     );
   }
@@ -300,6 +416,8 @@ export default function App() {
     return (
       <AdminView 
         onBackToRoles={goToRoleSelection} 
+        agentAccounts={agentAccounts}
+        onUpdateAgentStatus={handleUpdateAgentStatus}
       />
     );
   }
@@ -334,44 +452,42 @@ export default function App() {
           </div>
         </div>
 
-
-
-
-
-        {/* ==========================================
-            SCREEN 1: CUSTOMER HOME SCREEN 
-            ========================================== */}
-        {/* ==========================================
-            SCREEN 1: UNIFIED 5-TAB CUSTOMER EXPERIENCE
-            ========================================== */}
         {(currentScreen === 'home' || currentScreen === 'customer-home' || currentScreen === 'history') && (
           <div className="flex-1 flex flex-col overflow-hidden relative bg-slate-50">
             
+            {/* Unified Customer Header */}
+            <header className="bg-blue-700 text-white px-4 py-3 flex justify-between items-center shadow-md z-20 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-amber-400 text-slate-950 font-prompt font-black text-base flex items-center justify-center border border-white/20 shadow-inner shrink-0">
+                  N3
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <h1 className="font-prompt text-sm font-black tracking-tight leading-none text-white">
+                      N3 ลูกค้า
+                      {customerTab === 'home' ? '' : 
+                       customerTab === 'shops' ? ': ร้านค้า' : 
+                       customerTab === 'my-bookings' ? ': รายการจอง' : 
+                       customerTab === 'notifications' ? ': แจ้งเตือน' : ': บัญชี'}
+                    </h1>
+                    <span className="bg-blue-900 text-amber-300 font-prompt font-black text-[8px] px-1.5 py-0.5 rounded-md leading-none">Customer</span>
+                  </div>
+                  <p className="text-[9px] text-blue-100 font-medium mt-1 font-prompt">N3 Marketplace</p>
+                </div>
+              </div>
+              
+              <button 
+                id="btn-switch-role"
+                onClick={goToRoleSelection}
+                className="text-[10px] font-prompt font-black bg-amber-400 hover:bg-amber-500 active:bg-amber-600 text-slate-950 px-3.5 py-1.5 rounded-full active:scale-95 transition-transform cursor-pointer shadow-sm shrink-0 whitespace-nowrap"
+              >
+                เปลี่ยนบทบาท
+              </button>
+            </header>
+
             {/* 1. HOME TAB */}
             {customerTab === 'home' && (
               <div className="flex-1 flex flex-col overflow-hidden">
-                {/* Header */}
-                <header className="bg-blue-700 text-white px-4 py-3.5 flex justify-between items-center shadow-md z-20 shrink-0">
-                  <div className="flex items-center gap-2">
-                    <div className="w-9 h-9 rounded-full bg-amber-400 text-slate-950 font-prompt font-black text-xs flex items-center justify-center shadow-sm">
-                      N3
-                    </div>
-                    <div>
-                      <h1 className="font-prompt text-base font-black tracking-tight leading-none">N3 Marketplace</h1>
-                      <p className="text-[9px] text-blue-100 font-medium mt-1 font-prompt">แหล่งรวมตัวแทนสลากดิจิทัล 3 หลัก</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <button 
-                      onClick={() => setShowHelpModal(true)}
-                      className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center active:scale-95 transition-transform"
-                      title="วิธีเล่น / ช่วยเหลือ"
-                    >
-                      <HelpCircle size={18} className="stroke-[2.5px]" />
-                    </button>
-                  </div>
-                </header>
-
                 {/* Scrollable Content */}
                 <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 pb-28">
                   {/* Senior Welcome Banner */}
@@ -385,6 +501,91 @@ export default function App() {
                       <p className="text-[10px] text-blue-100 leading-relaxed font-medium font-prompt">
                         เลือกตัวแทนจำหน่ายที่ท่านถูกใจ เพื่อเข้าไปกดเลือกเลข 3 หลัก โต๊ด หรือ เต็ง ได้อย่างอิสระและโทรประสานงานได้ทันที
                       </p>
+                    </div>
+                  </div>
+
+                  {/* 3 Unified Customer KPI Cards */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-white border border-slate-200 p-2.5 rounded-2xl shadow-sm flex flex-col justify-between h-[76px]">
+                      <span className="text-[9px] text-slate-400 font-prompt font-black block">สิทธิ์จองสะสม</span>
+                      <div className="mt-1 flex items-baseline gap-0.5">
+                        <span className="text-lg font-black text-blue-700 font-mono">12</span>
+                        <span className="text-[8px] text-slate-400 font-prompt font-bold">ใบ</span>
+                      </div>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 p-2.5 rounded-2xl shadow-sm flex flex-col justify-between h-[76px]">
+                      <span className="text-[9px] text-slate-400 font-prompt font-black block">คะแนนสะสม</span>
+                      <div className="mt-1 flex items-baseline gap-0.5">
+                        <span className="text-lg font-black text-amber-500 font-mono">240</span>
+                        <span className="text-[8px] text-slate-400 font-prompt font-bold">แต้ม</span>
+                      </div>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 p-2.5 rounded-2xl shadow-sm flex flex-col justify-between h-[76px]">
+                      <span className="text-[9px] text-slate-400 font-prompt font-black block">แจ้งเตือนใหม่</span>
+                      <div className="mt-1 flex items-baseline gap-0.5">
+                        <span className="text-lg font-black text-rose-500 font-mono">2</span>
+                        <span className="text-[8px] text-slate-400 font-prompt font-bold">เรื่อง</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Customer Quick Actions */}
+                  <div className="space-y-2">
+                    <h4 className="font-prompt font-black text-xs text-slate-800 tracking-tight">เมนูใช้งานหลัก</h4>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <button 
+                        onClick={() => setCustomerTab('shops')}
+                        className="bg-white border border-slate-200 hover:border-blue-600 p-3 rounded-2xl text-left shadow-sm active:scale-95 transition-all flex flex-col justify-between h-24 cursor-pointer"
+                      >
+                        <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center">
+                          <Store size={18} />
+                        </div>
+                        <div>
+                          <span className="font-prompt font-black text-xs text-slate-900 block">ค้นหาหน้าร้าน</span>
+                          <span className="text-[9px] text-slate-400 truncate block font-prompt">ดูตัวแทนจำหน่ายใกล้บ้านคุณ</span>
+                        </div>
+                      </button>
+
+                      <button 
+                        onClick={() => setCustomerTab('my-bookings')}
+                        className="bg-white border border-slate-200 hover:border-blue-600 p-3 rounded-2xl text-left shadow-sm active:scale-95 transition-all flex flex-col justify-between h-24 cursor-pointer"
+                      >
+                        <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
+                          <Calendar size={18} />
+                        </div>
+                        <div>
+                          <span className="font-prompt font-black text-xs text-slate-900 block">ประวัติการจอง</span>
+                          <span className="text-[9px] text-slate-400 truncate block font-prompt">ตรวจเช็กและโทรติดตามรายการ</span>
+                        </div>
+                      </button>
+
+                      <button 
+                        onClick={() => showToast("🏆 ผลรางวัลสลาก N3 งวดล่าสุด: เลข 3 ตัวตรงคือ 123", "success")}
+                        className="bg-white border border-slate-200 hover:border-blue-600 p-3 rounded-2xl text-left shadow-sm active:scale-95 transition-all flex flex-col justify-between h-24 cursor-pointer"
+                      >
+                        <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                          <Sparkles size={18} />
+                        </div>
+                        <div>
+                          <span className="font-prompt font-black text-xs text-slate-900 block">ตรวจสลาก N3</span>
+                          <span className="text-[9px] text-slate-400 truncate block font-prompt">ระบบตรวจสลากจำลองงวดล่าสุด</span>
+                        </div>
+                      </button>
+
+                      <button 
+                        onClick={() => setShowHelpModal(true)}
+                        className="bg-blue-50/50 border border-blue-200 hover:bg-blue-50 p-3 rounded-2xl text-left shadow-sm active:scale-95 transition-all flex flex-col justify-between h-24 cursor-pointer"
+                      >
+                        <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center">
+                          <HelpCircle size={18} className="stroke-[2.5px]" />
+                        </div>
+                        <div>
+                          <span className="font-prompt font-black text-xs text-blue-950 block">วิธีซื้อ N3</span>
+                          <span className="text-[9px] text-blue-600 truncate block font-prompt font-bold">คู่มือสำหรับผู้สูงอายุ</span>
+                        </div>
+                      </button>
                     </div>
                   </div>
 
@@ -509,23 +710,6 @@ export default function App() {
             {/* 2. SHOPS TAB */}
             {customerTab === 'shops' && (
               <div className="flex-1 flex flex-col overflow-hidden">
-                {/* Header */}
-                <header className="bg-blue-700 text-white px-4 py-3.5 flex justify-between items-center shadow-md z-20 shrink-0">
-                  <div className="flex items-center gap-2">
-                    <Store size={20} className="text-amber-400" />
-                    <div>
-                      <h1 className="font-prompt text-base font-black tracking-tight leading-none">ร้านค้าตัวแทน N3</h1>
-                      <p className="text-[9px] text-blue-100 font-medium mt-1 font-prompt">รายชื่อตัวแทนทั้งหมดที่ผ่านการรับรอง</p>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => setShowHelpModal(true)}
-                    className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center active:scale-95 transition-transform"
-                  >
-                    <HelpCircle size={18} className="stroke-[2.5px]" />
-                  </button>
-                </header>
-
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 pb-28">
                   {/* Search input */}
@@ -629,29 +813,24 @@ export default function App() {
             {/* 3. BOOKINGS TAB (รายการของฉัน) */}
             {customerTab === 'my-bookings' && (
               <div className="flex-1 flex flex-col overflow-hidden">
-                {/* Header */}
-                <header className="bg-blue-700 text-white px-4 py-3.5 flex justify-between items-center shadow-md z-20 shrink-0">
-                  <div className="flex items-center gap-2">
-                    <Calendar size={20} className="text-amber-400" />
-                    <div>
-                      <h1 className="font-prompt text-base font-black tracking-tight leading-none">รายการของฉัน</h1>
-                      <p className="text-[9px] text-blue-100 font-medium mt-1 font-prompt">ตรวจสอบรายการจอง / รายการที่ส่งคำขอไว้</p>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => {
-                      showToast("🧹 คืนค่าข้อมูลประวัติเรียบร้อยแล้ว", "info");
-                      setOrders(mockOrders);
-                    }}
-                    className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center active:scale-95 transition-transform"
-                    title="ล้างประวัติเพิ่มเติม"
-                  >
-                    <RotateCcw size={16} />
-                  </button>
-                </header>
-
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 pb-28">
+                  {/* Restore history and Sub-Header bar */}
+                  <div className="flex justify-between items-center pb-1 pt-0.5 border-b border-slate-100">
+                    <span className="text-xs font-prompt font-black text-slate-800">รายการสั่งจองจำลองสะสม</span>
+                    <button 
+                      onClick={() => {
+                        showToast("🧹 คืนค่าข้อมูลประวัติเรียบร้อยแล้ว", "info");
+                        setOrders(mockOrders);
+                      }}
+                      className="text-[10px] bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-xl font-prompt font-black transition-all active:scale-95 shrink-0 flex items-center gap-1"
+                      title="รีเซ็ตประวัติ"
+                    >
+                      <RotateCcw size={12} />
+                      <span>คืนค่าข้อมูล</span>
+                    </button>
+                  </div>
+
                   {/* Status Pills */}
                   <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
                     {[
@@ -1136,7 +1315,7 @@ export default function App() {
                   <span className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5 shadow-sm">i</span>
                   <div className="text-[10px] text-blue-900 leading-relaxed font-bold font-prompt">
                     <p className="font-extrabold text-blue-900">แนะนำการสั่งจองจำลอง N3</p>
-                    <p className="font-medium text-slate-500 mt-0.5">ราคาใบละ 80 บาท หลังจากเลือกเลขสลากครบและส่งสรุปรายการแล้ว เจ๊นุชจะติดต่อกลับเพื่อโอนสิทธิ์จริงในแอปเป๋าตัง</p>
+                    <p className="font-medium text-slate-500 mt-0.5">ราคาใบละ 80 บาท หลังจากเลือกเลขสลากครบและส่งสรุปรายการแล้ว เจ๊แมวจะติดต่อกลับเพื่อโอนสิทธิ์จริงในแอปเป๋าตัง</p>
                   </div>
                 </div>
                 <div className="border-t border-blue-100/60 pt-2 text-center">
@@ -1702,7 +1881,7 @@ export default function App() {
                 </div>
 
                 <div className="bg-amber-50 border border-amber-200/60 p-2.5 rounded-xl text-[10px] text-amber-900 leading-normal font-semibold font-prompt">
-                  ⚠️ เจ๊นุชจำหน่ายสลากดิจิทัลจริงและโทรช่วยเหลือคนเฒ่าคนแก่ในการโอนสิทธิ์ผ่านเป๋าตัง กรุณากรอกเบอร์โทรตามจริงเพื่อให้ประสานงานได้ถูกต้อง
+                  ⚠️ เจ๊แมวจำหน่ายสลากดิจิทัลจริงและโทรช่วยเหลือคนเฒ่าคนแก่ในการโอนสิทธิ์ผ่านเป๋าตัง กรุณากรอกเบอร์โทรตามจริงเพื่อให้ประสานงานได้ถูกต้อง
                 </div>
               </div>
 
@@ -1815,7 +1994,7 @@ export default function App() {
               {/* Call-to-action details */}
               <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-xl text-[10px] text-slate-600 leading-normal font-semibold font-prompt">
                 <span className="font-bold text-emerald-800 block mb-0.5">📌 ขั้นตอนถัดไปสำหรับท่าน:</span>
-                เจ๊นุชจะทำการตรวจสอบสลากใบจริงในระบบหลังบ้าน หากได้รับการจับคู่สิทธิ์ จะมีเสียงโทรศัพท์โทรเข้าเครื่องท่านเพื่อยืนยันสลากโดยทันที
+                เจ๊แมวจะทำการตรวจสอบสลากใบจริงในระบบหลังบ้าน หากได้รับการจับคู่สิทธิ์ จะมีเสียงโทรศัพท์โทรเข้าเครื่องท่านเพื่อยืนยันสลากโดยทันที
               </div>
 
               {/* Control actions buttons */}

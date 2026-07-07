@@ -54,11 +54,13 @@ import {
 
 interface AdminViewProps {
   onBackToRoles: () => void;
+  agentAccounts: any[];
+  onUpdateAgentStatus: (phone: string, newStatus: string, notes?: string) => void;
 }
 
 type MobileAdminTab = 'overview' | 'approvals' | 'agents' | 'shops' | 'reports';
 
-export default function AdminView({ onBackToRoles }: AdminViewProps) {
+export default function AdminView({ onBackToRoles, agentAccounts, onUpdateAgentStatus }: AdminViewProps) {
   // Mobile tab states
   const [activeTab, setActiveTab] = useState<MobileAdminTab>('overview');
   
@@ -71,6 +73,21 @@ export default function AdminView({ onBackToRoles }: AdminViewProps) {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>(mockSubscriptionsList);
   const [addOnServices, setAddOnServices] = useState<AddOnService[]>(mockAddOnServicesList);
   
+  // Dynamic computed approvals (merging mock static requests and dynamic registrations)
+  const dynamicApprovals: ApprovalRequest[] = [
+    ...approvals,
+    ...(agentAccounts || [])
+      .filter(acc => acc.status === 'Pending Review' || acc.status === 'Need Edit')
+      .map(acc => ({
+        id: acc.phone, // We use phone as the unique request ID
+        name: acc.name,
+        image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=120',
+        type: 'register' as const,
+        typeText: acc.status === 'Need Edit' ? '✍️ แก้ไขส่งตรวจซ้ำ: ' + (acc.shopName || 'แผง N3') : '📝 ลงทะเบียนตัวแทนใหม่: ' + (acc.shopName || 'แผง N3'),
+        level: 'Basic Agent'
+      }))
+  ];
+
   // UI filter and search states
   const [searchQuery, setSearchQuery] = useState('');
   const [agentFilter, setAgentFilter] = useState<'all' | 'Active' | 'Pending' | 'Suspended'>('all');
@@ -108,6 +125,14 @@ export default function AdminView({ onBackToRoles }: AdminViewProps) {
 
   // 1. Handle Approve Agent / Shop Upgrade Request
   const handleApprove = (id: string, name: string, level?: string) => {
+    // Check if this is a dynamic agent registration (matching phone)
+    const isDynamicAgent = (agentAccounts || []).some(acc => acc.phone === id);
+    if (isDynamicAgent) {
+      onUpdateAgentStatus(id, 'Approved');
+      showToast(`✓ อนุมัติสิทธิ์ตัวแทนและเปิดร้าน "${name}" แล้ว`, 'success');
+      return;
+    }
+
     setApprovals(approvals.filter(app => app.id !== id));
     
     // Add approved agent to agents list
@@ -153,6 +178,14 @@ export default function AdminView({ onBackToRoles }: AdminViewProps) {
 
   // 2. Handle Reject Agent Request
   const handleReject = (id: string, name: string) => {
+    // Check if this is a dynamic agent registration (matching phone)
+    const isDynamicAgent = (agentAccounts || []).some(acc => acc.phone === id);
+    if (isDynamicAgent) {
+      onUpdateAgentStatus(id, 'Need Edit', 'เอกสารไม่สมบูรณ์ หรือรูปถ่ายจุดตั้งแผงไม่ชัดเจน กรุณาอัปโหลดรูปภาพใหม่อีกครั้ง');
+      showToast(`✕ ปฏิเสธลงทะเบียนของ "${name}" แล้ว (แจ้งแก้ไขเพิ่มเติม)`, 'warning');
+      return;
+    }
+
     setApprovals(approvals.filter(app => app.id !== id));
     showToast(`✕ ปฏิเสธการลงทะเบียนของ "${name}" แล้ว`, 'warning');
   };
@@ -334,7 +367,7 @@ export default function AdminView({ onBackToRoles }: AdminViewProps) {
 
                 <div className="bg-white border border-slate-200 p-3.5 rounded-2xl shadow-sm flex flex-col justify-between h-24">
                   <span className="text-[9px] font-prompt font-black text-slate-400">งานรอดำเนินการ</span>
-                  <h3 className="font-mono text-base font-black text-rose-500 leading-none">{approvals.length} รายการ</h3>
+                  <h3 className="font-mono text-base font-black text-rose-500 leading-none">{dynamicApprovals.length} รายการ</h3>
                   <span className="text-[8px] bg-rose-50 text-rose-600 border border-rose-100 px-1.5 py-0.5 rounded font-black font-prompt w-fit mt-1 animate-pulse">
                     อนุมัติด่วน!
                   </span>
@@ -357,7 +390,7 @@ export default function AdminView({ onBackToRoles }: AdminViewProps) {
                       <span className="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
                       อนุมัติตัวแทนสมัครใหม่ค้างอยู่
                     </span>
-                    <span className="text-rose-500 font-mono text-[10px] font-black">{approvals.filter(a => a.type === 'register').length} รายการ →</span>
+                    <span className="text-rose-500 font-mono text-[10px] font-black">{dynamicApprovals.filter(a => a.type === 'register').length} รายการ →</span>
                   </button>
 
                   <button 
@@ -368,7 +401,7 @@ export default function AdminView({ onBackToRoles }: AdminViewProps) {
                       <span className="w-1.5 h-1.5 rounded-full bg-purple-600"></span>
                       ตรวจสอบคำขออัปเกรดบูธ
                     </span>
-                    <span className="text-indigo-600 font-mono text-[10px] font-black">{approvals.filter(a => a.type === 'upgrade').length} คำขอ →</span>
+                    <span className="text-indigo-600 font-mono text-[10px] font-black">{dynamicApprovals.filter(a => a.type === 'upgrade').length} คำขอ →</span>
                   </button>
 
                   <button 
@@ -505,7 +538,7 @@ export default function AdminView({ onBackToRoles }: AdminViewProps) {
                   <div className="flex gap-2.5 items-start border-t border-slate-50 pt-2.5">
                     <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-[8px] shrink-0">●</span>
                     <div>
-                      <p className="text-slate-900 font-black">"คุณเจ๊นุช บางใหญ่" ได้รับการปรับยอดโควตาสำรองเพิ่ม</p>
+                      <p className="text-slate-900 font-black">"คุณเจ๊แมว บางใหญ่" ได้รับการปรับยอดโควตาสำรองเพิ่ม</p>
                       <p className="text-[8px] text-slate-400 font-semibold font-mono mt-0.5">วันนี้ • 09:45 น.</p>
                     </div>
                   </div>
@@ -539,13 +572,13 @@ export default function AdminView({ onBackToRoles }: AdminViewProps) {
                   onClick={() => setApprovalSubTab('register')}
                   className={`flex-1 py-1.5 rounded-lg text-center transition-all ${approvalSubTab === 'register' ? 'bg-indigo-600 text-white shadow-sm' : 'hover:text-indigo-600'}`}
                 >
-                  ตัวแทน ({approvals.filter(a => a.type === 'register').length})
+                  ตัวแทน ({dynamicApprovals.filter(a => a.type === 'register').length})
                 </button>
                 <button
                   onClick={() => setApprovalSubTab('upgrade')}
                   className={`flex-1 py-1.5 rounded-lg text-center transition-all ${approvalSubTab === 'upgrade' ? 'bg-indigo-600 text-white shadow-sm' : 'hover:text-indigo-600'}`}
                 >
-                  อัปเกรด ({approvals.filter(a => a.type === 'upgrade').length})
+                  อัปเกรด ({dynamicApprovals.filter(a => a.type === 'upgrade').length})
                 </button>
                 <button
                   onClick={() => setApprovalSubTab('docs')}
@@ -565,8 +598,8 @@ export default function AdminView({ onBackToRoles }: AdminViewProps) {
               <div className="space-y-3">
                 {approvalSubTab === 'register' && (
                   <>
-                    {approvals.filter(a => a.type === 'register').length > 0 ? (
-                      approvals.filter(a => a.type === 'register').map(req => (
+                    {dynamicApprovals.filter(a => a.type === 'register').length > 0 ? (
+                      dynamicApprovals.filter(a => a.type === 'register').map(req => (
                         <div key={req.id} className="bg-white border-2 border-slate-200 p-4 rounded-2xl shadow-sm space-y-3 font-prompt">
                           <div className="flex gap-3 items-start">
                             <img src={req.image} className="w-11 h-11 rounded-full object-cover border shrink-0" alt="" />
@@ -618,8 +651,8 @@ export default function AdminView({ onBackToRoles }: AdminViewProps) {
 
                 {approvalSubTab === 'upgrade' && (
                   <>
-                    {approvals.filter(a => a.type === 'upgrade').length > 0 ? (
-                      approvals.filter(a => a.type === 'upgrade').map(req => (
+                    {dynamicApprovals.filter(a => a.type === 'upgrade').length > 0 ? (
+                      dynamicApprovals.filter(a => a.type === 'upgrade').map(req => (
                         <div key={req.id} className="bg-white border-2 border-slate-200 p-4 rounded-2xl shadow-sm space-y-3 font-prompt">
                           <div className="flex gap-3 items-start">
                             <img src={req.image} className="w-11 h-11 rounded-full object-cover border shrink-0" alt="" />
@@ -697,13 +730,13 @@ export default function AdminView({ onBackToRoles }: AdminViewProps) {
                       </div>
                       <div>
                         <h4 className="text-xs font-black text-slate-800 leading-snug">ลูกค้าร้องเรียนโควตาจองสลากดิจิทัลไม่ตัดเข้าระบบเป๋าตังจริง</h4>
-                        <p className="text-[9px] text-slate-500 mt-1">ผู้ร้องเรียน: คุณนลินี รักดี • ร้านตัวแทนกรณีพิพาท: ร้านเจ๊นุช บางใหญ่</p>
+                        <p className="text-[9px] text-slate-500 mt-1">ผู้ร้องเรียน: คุณนลินี รักดี • ร้านตัวแทนกรณีพิพาท: ร้านเจ๊แมว บางใหญ่</p>
                       </div>
                       <div className="bg-red-50/50 p-2.5 rounded-xl border border-red-100 text-[10px] text-slate-600 font-medium leading-relaxed">
-                        <strong>ข้อความผู้ร้องเรียน:</strong> "ทำการโอนสลากให้เจ๊นุชตัดสิทธิ์ไปแล้ว รอผ่านไป 3 ชั่วโมงเลขยังไม่เด้งขึ้นหน้ารายการสั่งซื้อของฉันเลยค่ะ เจ๊ไม่ตอบไลน์เลย"
+                        <strong>ข้อความผู้ร้องเรียน:</strong> "ทำการโอนสลากให้เจ๊แมวตัดสิทธิ์ไปแล้ว รอผ่านไป 3 ชั่วโมงเลขยังไม่เด้งขึ้นหน้ารายการสั่งซื้อของฉันเลยค่ะ เจ๊ไม่ตอบไลน์เลย"
                       </div>
                       <div className="flex gap-2 pt-1">
-                        <button onClick={() => showToast("✕ ยกคำร้อง เนื่องจากเจ๊นุชเคลียร์โควตาแล้ว", "info")} className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-[10px] font-black">ยกฟ้อง</button>
+                        <button onClick={() => showToast("✕ ยกคำร้อง เนื่องจากเจ๊แมวเคลียร์โควตาแล้ว", "info")} className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-[10px] font-black">ยกฟ้อง</button>
                         <button onClick={() => showToast("⚖️ ดำเนินการระงับสิทธิ์ร้านค้านั้นชั่วคราวเพื่อรอตรวจสอบ", "warning")} className="flex-1 py-2.5 bg-red-600 text-white hover:bg-red-700 rounded-xl text-[10px] font-black">สั่งระงับสิทธิ์ตรวจสอบ</button>
                       </div>
                     </div>
@@ -1119,7 +1152,7 @@ export default function AdminView({ onBackToRoles }: AdminViewProps) {
         <nav className="absolute bottom-5 left-4 right-4 bg-purple-950 text-white rounded-2xl px-1.5 py-2.5 shadow-xl flex justify-around items-center z-30 border border-purple-900">
           {[
             { id: 'overview', label: 'ภาพรวม', icon: BarChart3 },
-            { id: 'approvals', label: 'อนุมัติ', icon: ShieldCheck, badge: approvals.length },
+            { id: 'approvals', label: 'อนุมัติ', icon: ShieldCheck, badge: dynamicApprovals.length },
             { id: 'agents', label: 'ตัวแทน', icon: Users },
             { id: 'shops', label: 'ร้านค้า', icon: Store },
             { id: 'reports', label: 'รายงาน', icon: FileText }
@@ -1275,7 +1308,7 @@ export default function AdminView({ onBackToRoles }: AdminViewProps) {
                     <span className="text-[8px] font-bold text-slate-400 self-center">ร้านโปรด:</span>
                     {cust.favoriteShops.map(fs => (
                       <span key={fs} className="bg-white border px-1.5 py-0.5 rounded text-[8px] font-bold text-slate-600">
-                        {fs === 'shop1' ? 'ร้านเจ๊นุช' : fs === 'shop2' ? 'สมชาย N3' : fs === 'shop3' ? 'บ้านสลาก N3' : 'โชคดี N3'}
+                        {fs === 'shop1' ? 'ร้านเจ๊แมว' : fs === 'shop2' ? 'สมชาย N3' : fs === 'shop3' ? 'บ้านสลาก N3' : 'โชคดี N3'}
                       </span>
                     ))}
                   </div>
@@ -1512,7 +1545,15 @@ export default function AdminView({ onBackToRoles }: AdminViewProps) {
                     showToast("⚠️ กรุณาระบุข้อความรายละเอียดด้วยค่ะ", "warning");
                     return;
                   }
-                  showToast(`✓ ส่งคำขอข้อมูลเพิ่มเติมไปยังผู้ใช้เรียบร้อย`, 'success');
+                  
+                  const isDynamicAgent = (agentAccounts || []).some(acc => acc.phone === showRequestInfoId);
+                  if (isDynamicAgent) {
+                    onUpdateAgentStatus(showRequestInfoId!, 'Need Edit', requestInfoText);
+                    showToast(`✓ ส่งคำขอปฏิเสธให้แก้ไขไปยังเอเย่นต์ "${agentAccounts.find(acc => acc.phone === showRequestInfoId)?.name}" เรียบร้อย`, 'success');
+                  } else {
+                    showToast(`✓ ส่งคำขอข้อมูลเพิ่มเติมไปยังผู้ใช้เรียบร้อย`, 'success');
+                  }
+                  
                   setShowRequestInfoId(null);
                   setRequestInfoText('');
                 }}

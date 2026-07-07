@@ -42,9 +42,21 @@ import { AgentTab, Order } from '../types';
 
 interface AgentViewProps {
   onBackToRoles: () => void;
+  agentAccounts?: any[];
+  onUpdateAgentAccounts?: (accounts: any[]) => void;
+  loggedInAgentPhone?: string | null;
+  onSetLoggedInAgentPhone?: (phone: string | null) => void;
 }
 
-export default function AgentView({ onBackToRoles }: AgentViewProps) {
+export default function AgentView({ 
+  onBackToRoles,
+  agentAccounts = [],
+  onUpdateAgentAccounts = () => {},
+  loggedInAgentPhone = null,
+  onSetLoggedInAgentPhone = () => {}
+}: AgentViewProps) {
+  const currentAgent = agentAccounts.find(acc => acc.phone === loggedInAgentPhone) || null;
+
   // Navigation State
   const [activeTab, setActiveTab] = useState<AgentTab>('home');
   const [orderFilter, setOrderFilter] = useState<'pending' | 'processing' | 'success'>('pending');
@@ -60,11 +72,197 @@ export default function AgentView({ onBackToRoles }: AgentViewProps) {
   const [reportPeriod, setReportPeriod] = useState<'today' | 'period' | 'month' | 'custom'>('period');
   
   // Store management form inputs (Thai, senior-friendly, large fields)
-  const [storeName, setStoreName] = useState('ร้านเจ๊นุช N3');
+  const [storeName, setStoreName] = useState('ร้านเจ๊แมว N3');
   const [storeDesc, setStoreDesc] = useState('ศูนย์รวมสลากกินแบ่งและเลข N3 แท้ 100% จัดส่งรวดเร็ว ปลอดภัย ได้โควตาตรงจากรัฐบาล มั่นใจบริการเป็นกันเอง');
   const [storeHours, setStoreHours] = useState('เปิดบริการทุกวัน 07:00 น. - 21:00 น.');
   const [storePhone, setStorePhone] = useState('089-124-5124');
   const [storeArea, setStoreArea] = useState('บริการจัดส่งฟรีในเขตหนองแขมและพื้นที่ใกล้เคียงใน 5 กม.');
+
+  // Sync inputs with logged in agent
+  React.useEffect(() => {
+    if (currentAgent) {
+      setStoreName(currentAgent.shopName || 'ร้านเจ๊แมว N3');
+      setStoreDesc(currentAgent.desc || 'ศูนย์รวมสลากกินแบ่งและเลข N3 แท้ 100% จัดส่งรวดเร็ว ปลอดภัย ได้โควตาตรงจากรัฐบาล มั่นใจบริการเป็นกันเอง');
+      setStoreHours(currentAgent.hours || 'เปิดบริการทุกวัน 07:00 น. - 21:00 น.');
+      setStorePhone(currentAgent.shopPhone || '089-124-5124');
+      setStoreArea(currentAgent.area || 'บางใหญ่, นนทบุรี');
+    }
+  }, [loggedInAgentPhone, currentAgent]);
+
+  // Auth / Reg screens states
+  const [authScreen, setAuthScreen] = useState<'login' | 'register'>('login');
+  const [registerStep, setRegisterStep] = useState<1 | 2 | 3 | 4>(1);
+  const [loginPhone, setLoginPhone] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  // Reg form states
+  const [regName, setRegName] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
+
+  const [regShopName, setRegShopName] = useState('');
+  const [regArea, setRegArea] = useState('');
+  const [regHours, setRegHours] = useState('เปิดบริการทุกวัน 07:00 - 21:00 น.');
+  const [regShopPhone, setRegShopPhone] = useState('');
+  const [regDesc, setRegDesc] = useState('ศูนย์รวมสลากกินแบ่งและเลข N3 แท้ 100% จัดส่งรวดเร็ว ปลอดภัย ได้โควตาตรงจากรัฐบาล มั่นใจบริการเป็นกันเอง');
+
+  const [uploadedDocs, setUploadedDocs] = useState({
+    idCard: false,
+    idCardWithFace: false,
+    agentLicense: false,
+    shopPhoto: false
+  });
+
+  const [confirmInfoCorrect, setConfirmInfoCorrect] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState<string | null>(null);
+  
+  // Status check for approved agent
+  const [hasAcknowledgedApproval, setHasAcknowledgedApproval] = useState(() => {
+    if (loggedInAgentPhone) {
+      return localStorage.getItem(`n3_approved_ack_${loggedInAgentPhone}`) === 'true';
+    }
+    return false;
+  });
+
+  React.useEffect(() => {
+    if (loggedInAgentPhone) {
+      setHasAcknowledgedApproval(localStorage.getItem(`n3_approved_ack_${loggedInAgentPhone}`) === 'true');
+    } else {
+      setHasAcknowledgedApproval(false);
+    }
+  }, [loggedInAgentPhone]);
+
+  const handleEnterDashboard = () => {
+    if (loggedInAgentPhone) {
+      localStorage.setItem(`n3_approved_ack_${loggedInAgentPhone}`, 'true');
+      setHasAcknowledgedApproval(true);
+      showToast("🎉 ยินดีต้อนรับเข้าสู่แผงจัดการตัวแทน N3!");
+    }
+  };
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError(null);
+
+    if (!loginPhone.trim() || !loginPassword.trim()) {
+      setAuthError('⚠️ กรุณากรอกเบอร์โทรศัพท์/อีเมล และรหัสผ่าน');
+      return;
+    }
+
+    const found = agentAccounts.find(
+      acc => (acc.phone === loginPhone || acc.email === loginPhone) && acc.password === loginPassword
+    );
+
+    if (found) {
+      onSetLoggedInAgentPhone(found.phone);
+      setLoginPhone('');
+      setLoginPassword('');
+      showToast(`🔓 เข้าสู่ระบบสำเร็จ: ${found.name}`);
+    } else {
+      setAuthError('❌ เบอร์โทรศัพท์ อีเมล หรือรหัสผ่านไม่ถูกต้อง');
+    }
+  };
+
+  const handleNextStep1 = () => {
+    setAuthError(null);
+    if (!regName.trim() || !regPhone.trim() || !regEmail.trim() || !regPassword.trim() || !regConfirmPassword.trim()) {
+      setAuthError('⚠️ กรุณากรอกข้อมูลส่วนตัวให้ครบถ้วน');
+      return;
+    }
+    const phoneRegex = /^0\d{8,9}$/;
+    if (!phoneRegex.test(regPhone.replace(/[- ]/g, ''))) {
+      setAuthError('⚠️ กรุณากรอกเบอร์โทรศัพท์ที่ถูกต้อง (เช่น 0891234567)');
+      return;
+    }
+    if (regPassword !== regConfirmPassword) {
+      setAuthError('⚠️ รหัสผ่านและการยืนยันรหัสผ่านไม่ตรงกัน');
+      return;
+    }
+    if (agentAccounts.some(acc => acc.phone === regPhone)) {
+      setAuthError('⚠️ เบอร์โทรศัพท์นี้ถูกใช้ลงทะเบียนเป็นตัวแทนอื่นแล้ว');
+      return;
+    }
+    setRegisterStep(2);
+  };
+
+  const handleNextStep2 = () => {
+    setAuthError(null);
+    if (!regShopName.trim() || !regArea.trim() || !regHours.trim() || !regShopPhone.trim() || !regDesc.trim()) {
+      setAuthError('⚠️ กรุณากรอกข้อมูลร้านตัวแทนให้ครบถ้วน');
+      return;
+    }
+    setRegisterStep(3);
+  };
+
+  const handleNextStep3 = () => {
+    setAuthError(null);
+    if (!uploadedDocs.idCard || !uploadedDocs.idCardWithFace || !uploadedDocs.agentLicense || !uploadedDocs.shopPhoto) {
+      setAuthError('⚠️ กรุณาอัปโหลดเอกสารยืนยันตัวตนให้ครบถ้วนทุกรายการ');
+      return;
+    }
+    setRegisterStep(4);
+  };
+
+  const handleSubmitRegister = () => {
+    setAuthError(null);
+    if (!confirmInfoCorrect) {
+      setAuthError('⚠️ กรุณากดยอมรับว่าข้อมูลทั้งหมดถูกต้องและเป็นความจริง');
+      return;
+    }
+
+    const newAgentId = `AG-00${1245 + agentAccounts.length}`;
+    const newAccount = {
+      id: newAgentId,
+      name: regName,
+      email: regEmail,
+      phone: regPhone,
+      password: regPassword,
+      shopName: regShopName,
+      area: regArea,
+      hours: regHours,
+      shopPhone: regShopPhone,
+      desc: regDesc,
+      status: 'Pending Review',
+      level: 'Basic',
+      submittedAt: new Date().toLocaleDateString('th-TH') + ' • ' + new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.',
+      notes: '',
+      documents: {
+        idCard: 'uploaded',
+        idCardWithFace: 'uploaded',
+        agentLicense: 'uploaded',
+        shopPhoto: 'uploaded',
+      }
+    };
+
+    onUpdateAgentAccounts([...agentAccounts, newAccount]);
+    onSetLoggedInAgentPhone(regPhone);
+    
+    // Reset inputs
+    setRegName('');
+    setRegPhone('');
+    setRegEmail('');
+    setRegPassword('');
+    setRegConfirmPassword('');
+    setRegShopName('');
+    setRegArea('');
+    setRegHours('เปิดบริการทุกวัน 07:00 - 21:00 น.');
+    setRegShopPhone('');
+    setRegDesc('ศูนย์รวมสลากกินแบ่งและเลข N3 แท้ 100% จัดส่งรวดเร็ว ปลอดภัย ได้โควตาตรงจากรัฐบาล มั่นใจบริการเป็นกันเอง');
+    setUploadedDocs({ idCard: false, idCardWithFace: false, agentLicense: false, shopPhoto: false });
+    setConfirmInfoCorrect(false);
+    setRegisterStep(1);
+    setAuthScreen('login');
+    showToast('🚀 ส่งใบสมัครตัวแทนสำเร็จ! กรุณารอตรวจสอบเอกสาร');
+  };
+
+  const handleLogout = () => {
+    onSetLoggedInAgentPhone(null);
+    setAuthScreen('login');
+    showToast('🔒 ออกจากระบบตัวแทนเรียบร้อย');
+  };
 
   const showToast = (message: string) => {
     setToastMessage(message);
@@ -366,6 +564,814 @@ export default function AgentView({ onBackToRoles }: AgentViewProps) {
             </div>
 
           </div>
+        ) : !currentAgent ? (
+          /* AGENT REGISTER / LOGIN FLOW */
+          authScreen === 'login' ? (
+            <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 relative font-prompt">
+              {/* Header */}
+              <header className="bg-emerald-800 text-white px-4 py-4 flex items-center justify-between shadow-md shrink-0">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-amber-400 text-slate-950 font-black text-sm flex items-center justify-center border border-white/20 shadow-inner shrink-0">N3</div>
+                  <div>
+                    <h1 className="text-sm font-black tracking-tight leading-none text-white">ระบบตัวแทนขาย</h1>
+                    <p className="text-[9px] text-emerald-100 font-medium mt-1">N3 Agent Marketplace</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={onBackToRoles}
+                  className="text-[10px] font-black bg-white/20 hover:bg-white/30 text-white px-2.5 py-1.5 rounded-lg transition-colors active:scale-95 shrink-0"
+                >
+                  เปลี่ยนบทบาท
+                </button>
+              </header>
+
+              {/* Login Form Scroll Body */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-5">
+                <div className="bg-white border-2 border-emerald-100 rounded-3xl p-5 shadow-xs text-center space-y-3">
+                  <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto border border-emerald-100">
+                    <Store size={28} className="stroke-[2.5px]" />
+                  </div>
+                  <div>
+                    <h2 className="font-black text-slate-800 text-base leading-snug">เข้าสู่ระบบตัวแทน</h2>
+                    <p className="text-slate-400 text-[10px] font-semibold mt-1 leading-relaxed">
+                      เข้าสู่ระบบเพื่อจัดการร้าน ออเดอร์ ลูกค้า และรายงานของคุณ
+                    </p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleLogin} className="space-y-4">
+                  {authError && (
+                    <div className="bg-rose-50 border border-rose-200 p-3 rounded-2xl text-rose-700 text-xs font-black flex items-center gap-2">
+                      <AlertCircle size={16} className="shrink-0" />
+                      <span>{authError}</span>
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-black text-slate-700 block">เบอร์โทรศัพท์ / อีเมล</label>
+                    <input 
+                      type="text"
+                      value={loginPhone}
+                      onChange={(e) => setLoginPhone(e.target.value)}
+                      placeholder="กรอกเบอร์โทรศัพท์ เช่น 0891235124"
+                      className="w-full px-4 py-3.5 border-2 border-slate-200 focus:border-emerald-500 bg-white rounded-2xl text-xs font-bold outline-none transition-colors"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-black text-slate-700 block">รหัสผ่าน</label>
+                    <input 
+                      type="password"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      placeholder="กรอกรหัสผ่าน (เช่น 123456)"
+                      className="w-full px-4 py-3.5 border-2 border-slate-200 focus:border-emerald-500 bg-white rounded-2xl text-xs font-bold outline-none transition-colors"
+                    />
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button 
+                      type="button"
+                      onClick={() => showToast("💡 รหัสผ่านทดสอบคือ 123456 ทุกบัญชี")}
+                      className="text-[10px] font-black text-slate-400 hover:text-slate-600 underline"
+                    >
+                      ลืมรหัสผ่าน?
+                    </button>
+                  </div>
+
+                  <button 
+                    type="submit"
+                    className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-2xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <ShieldCheck size={16} className="stroke-[2.5px]" />
+                    <span>เข้าสู่ระบบตัวแทน</span>
+                  </button>
+                </form>
+
+                {/* Switch to register */}
+                <div className="bg-amber-50 border border-amber-200 p-4 rounded-3xl text-center space-y-3">
+                  <div className="text-[10px] text-amber-900 font-semibold leading-relaxed">
+                    <strong>ยังไม่มีบัญชีตัวแทนจำหน่าย?</strong><br />
+                    สมัครตัวแทนใหม่เพื่อเปิดรับยอดจองสลากดิจิทัลจำลองจากในพื้นที่ชุมชน
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setAuthScreen('register');
+                      setRegisterStep(1);
+                      setAuthError(null);
+                    }}
+                    className="w-full py-3 bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs rounded-xl transition-all active:scale-95 cursor-pointer border border-amber-500"
+                  >
+                    สมัครตัวแทนใหม่
+                  </button>
+                </div>
+
+                {/* Guide Mock accounts */}
+                <div className="bg-slate-100/80 border border-slate-200 rounded-2xl p-3.5 space-y-2 text-left">
+                  <span className="text-[9px] font-black text-slate-600 block">💡 บัญชีจำลองสำหรับร่วมทดสอบ:</span>
+                  <div className="space-y-1.5 text-[9px] text-slate-500 font-bold leading-relaxed font-mono">
+                    <div>
+                      <span className="text-emerald-700 font-black">● อนุมัติแล้ว (Approved)</span><br />
+                      เบอร์: <span className="text-slate-800 font-black">089-123-5124</span> | รหัส: <span className="text-slate-800">123456</span>
+                    </div>
+                    <div className="border-t border-slate-200/60 pt-1">
+                      <span className="text-amber-700 font-black">● รอแอดมินตรวจ (Pending)</span><br />
+                      เบอร์: <span className="text-slate-800 font-black">088-222-3333</span> | รหัส: <span className="text-slate-800">123456</span>
+                    </div>
+                    <div className="border-t border-slate-200/60 pt-1">
+                      <span className="text-rose-700 font-black">● ต้องแก้ไข (Need Edit)</span><br />
+                      เบอร์: <span className="text-slate-800 font-black">087-111-2222</span> | รหัส: <span className="text-slate-800">123456</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* REGISTER FLOW SCREENS */
+            <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 relative font-prompt">
+              {/* Header */}
+              <header className="bg-emerald-800 text-white px-4 py-4 flex items-center justify-between shadow-md shrink-0">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-amber-400 text-slate-950 font-bold text-sm flex items-center justify-center border border-white/20 shadow-inner shrink-0">N3</div>
+                  <h1 className="text-sm font-black tracking-tight leading-none text-white">ลงทะเบียนสมัครตัวแทน</h1>
+                </div>
+                <button 
+                  onClick={() => setAuthScreen('login')}
+                  className="text-[10px] font-black bg-white/20 hover:bg-white/30 text-white px-2.5 py-1.5 rounded-lg transition-colors active:scale-95 shrink-0"
+                >
+                  เข้าสู่ระบบ
+                </button>
+              </header>
+
+              {/* Scrollable Registration Form Body */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-5 relative">
+                {/* Step indicator header */}
+                {registerStep === 1 && (
+                  <div className="space-y-4">
+                    <div className="space-y-3 shrink-0">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[11px] bg-emerald-100 text-emerald-800 font-black px-2.5 py-1 rounded-full">
+                          ขั้นตอนที่ 1 จาก 4
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-bold">สมัครบัญชีตัวแทน</span>
+                      </div>
+                      <h2 className="font-black text-slate-900 text-base leading-tight">กรอกข้อมูลบัญชีผู้ใช้งาน</h2>
+                      {/* Progress pill bar */}
+                      <div className="flex gap-1.5">
+                        {[1, 2, 3, 4].map(s => (
+                          <div 
+                            key={s} 
+                            className={`h-2 flex-1 rounded-full transition-all duration-300 ${s <= 1 ? 'bg-emerald-600' : 'bg-slate-200'}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {authError && (
+                      <div className="bg-rose-50 border border-rose-200 p-3 rounded-2xl text-rose-700 text-xs font-black flex items-center gap-2">
+                        <AlertCircle size={16} className="shrink-0" />
+                        <span>{authError}</span>
+                      </div>
+                    )}
+                    <div className="space-y-3 bg-white p-4 rounded-2xl border border-slate-200">
+                      <div className="space-y-1">
+                        <label className="text-xs font-black text-slate-700 block">ชื่อ-นามสกุล</label>
+                        <input 
+                          type="text"
+                          value={regName}
+                          onChange={(e) => setRegName(e.target.value)}
+                          placeholder="เช่น นายรักดี ยิ่งชีพ"
+                          className="w-full px-3.5 py-3 border-2 border-slate-200 focus:border-emerald-500 rounded-xl text-xs font-bold outline-none"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-black text-slate-700 block">เบอร์โทรศัพท์ผู้ติดต่อ</label>
+                        <input 
+                          type="tel"
+                          value={regPhone}
+                          onChange={(e) => setRegPhone(e.target.value)}
+                          placeholder="เช่น 089xxxxxxx"
+                          className="w-full px-3.5 py-3 border-2 border-slate-200 focus:border-emerald-500 rounded-xl text-xs font-bold outline-none"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-black text-slate-700 block">อีเมลบัญชี</label>
+                        <input 
+                          type="email"
+                          value={regEmail}
+                          onChange={(e) => setRegEmail(e.target.value)}
+                          placeholder="เช่น user@email.com"
+                          className="w-full px-3.5 py-3 border-2 border-slate-200 focus:border-emerald-500 rounded-xl text-xs font-bold outline-none"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-black text-slate-700 block">ตั้งรหัสผ่านบัญชี</label>
+                        <input 
+                          type="password"
+                          value={regPassword}
+                          onChange={(e) => setRegPassword(e.target.value)}
+                          placeholder="กำหนดรหัสผ่าน (6 ตัวขึ้นไป)"
+                          className="w-full px-3.5 py-3 border-2 border-slate-200 focus:border-emerald-500 rounded-xl text-xs font-bold outline-none"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-black text-slate-700 block">ยืนยันรหัสผ่านอีกครั้ง</label>
+                        <input 
+                          type="password"
+                          value={regConfirmPassword}
+                          onChange={(e) => setRegConfirmPassword(e.target.value)}
+                          placeholder="กรอกรหัสผ่านตรงกับช่องด้านบน"
+                          className="w-full px-3.5 py-3 border-2 border-slate-200 focus:border-emerald-500 rounded-xl text-xs font-bold outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2.5 pt-2">
+                      <button 
+                        onClick={() => setAuthScreen('login')}
+                        className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-black text-center"
+                      >
+                        ย้อนกลับ
+                      </button>
+                      <button 
+                        onClick={handleNextStep1}
+                        className="flex-[2] py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1 shadow-sm"
+                      >
+                        <span>ถัดไป</span>
+                        <ChevronRight size={16} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {registerStep === 2 && (
+                  <div className="space-y-4">
+                    <div className="space-y-3 shrink-0">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[11px] bg-emerald-100 text-emerald-800 font-black px-2.5 py-1 rounded-full">
+                          ขั้นตอนที่ 2 จาก 4
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-bold">ข้อมูลร้านตัวแทน</span>
+                      </div>
+                      <h2 className="font-black text-slate-900 text-base leading-tight">กรอกรายละเอียดร้านค้า</h2>
+                      {/* Progress pill bar */}
+                      <div className="flex gap-1.5">
+                        {[1, 2, 3, 4].map(s => (
+                          <div 
+                            key={s} 
+                            className={`h-2 flex-1 rounded-full transition-all duration-300 ${s <= 2 ? 'bg-emerald-600' : 'bg-slate-200'}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {authError && (
+                      <div className="bg-rose-50 border border-rose-200 p-3 rounded-2xl text-rose-700 text-xs font-black flex items-center gap-2">
+                        <AlertCircle size={16} className="shrink-0" />
+                        <span>{authError}</span>
+                      </div>
+                    )}
+                    <div className="space-y-3 bg-white p-4 rounded-2xl border border-slate-200">
+                      <div className="space-y-1">
+                        <label className="text-xs font-black text-slate-700 block">ชื่อร้านตัวแทนจำหน่าย</label>
+                        <input 
+                          type="text"
+                          value={regShopName}
+                          onChange={(e) => setRegShopName(e.target.value)}
+                          placeholder="เช่น ร้านเจ๊แมว N3"
+                          className="w-full px-3.5 py-3 border-2 border-slate-200 focus:border-emerald-500 rounded-xl text-xs font-bold outline-none"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-black text-slate-700 block">พื้นที่ให้บริการ / ทำเลที่ตั้ง</label>
+                        <input 
+                          type="text"
+                          value={regArea}
+                          onChange={(e) => setRegArea(e.target.value)}
+                          placeholder="เช่น บางใหญ่, นนทบุรี"
+                          className="w-full px-3.5 py-3 border-2 border-slate-200 focus:border-emerald-500 rounded-xl text-xs font-bold outline-none"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-black text-slate-700 block">เวลาเปิด-ปิดร้าน</label>
+                        <input 
+                          type="text"
+                          value={regHours}
+                          onChange={(e) => setRegHours(e.target.value)}
+                          placeholder="เช่น เปิดบริการทุกวัน 07:00 - 21:00 น."
+                          className="w-full px-3.5 py-3 border-2 border-slate-200 focus:border-emerald-500 rounded-xl text-xs font-bold outline-none"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-black text-slate-700 block">เบอร์โทรร้าน หรือ LINE ID</label>
+                        <input 
+                          type="text"
+                          value={regShopPhone}
+                          onChange={(e) => setRegShopPhone(e.target.value)}
+                          placeholder="เช่น 089-124-5124"
+                          className="w-full px-3.5 py-3 border-2 border-slate-200 focus:border-emerald-500 rounded-xl text-xs font-bold outline-none"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-black text-slate-700 block">คำอธิบายร้านสั้นๆ</label>
+                        <textarea 
+                          value={regDesc}
+                          onChange={(e) => setRegDesc(e.target.value)}
+                          placeholder="เช่น ตัวแทนจำหน่ายสลากดิจิทัลแท้ มั่นใจในบริการ ช่วยเหลือคนชราทำรายการฟรี"
+                          rows={3}
+                          className="w-full px-3.5 py-2.5 border-2 border-slate-200 focus:border-emerald-500 rounded-xl text-xs font-bold outline-none resize-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2.5 pt-2">
+                      <button 
+                        onClick={() => setRegisterStep(1)}
+                        className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-black text-center"
+                      >
+                        ย้อนกลับ
+                      </button>
+                      <button 
+                        onClick={handleNextStep2}
+                        className="flex-[2] py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1 shadow-sm"
+                      >
+                        <span>ถัดไป</span>
+                        <ChevronRight size={16} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {registerStep === 3 && (
+                  <div className="space-y-4">
+                    <div className="space-y-3 shrink-0">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[11px] bg-emerald-100 text-emerald-800 font-black px-2.5 py-1 rounded-full">
+                          ขั้นตอนที่ 3 จาก 4
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-bold">เอกสารแนบ (KYC)</span>
+                      </div>
+                      <h2 className="font-black text-slate-900 text-base leading-tight">อัปโหลดเอกสารยืนยันตัวตน</h2>
+                      {/* Progress pill bar */}
+                      <div className="flex gap-1.5">
+                        {[1, 2, 3, 4].map(s => (
+                          <div 
+                            key={s} 
+                            className={`h-2 flex-1 rounded-full transition-all duration-300 ${s <= 3 ? 'bg-emerald-600' : 'bg-slate-200'}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl text-[10px] text-emerald-900 font-bold leading-relaxed">
+                      💡 สัญญาสิทธิ์จำหน่ายสลากดิจิทัลจำลอง และเอกสารประจำตัวจะได้รับการคุ้มครองสิทธิ์และความปลอดภัย
+                    </div>
+                    {authError && (
+                      <div className="bg-rose-50 border border-rose-200 p-3 rounded-2xl text-rose-700 text-xs font-black flex items-center gap-2">
+                        <AlertCircle size={16} className="shrink-0" />
+                        <span>{authError}</span>
+                      </div>
+                    )}
+
+                    <div className="space-y-3">
+                      {[
+                        { key: 'idCard', name: '1. รูปบัตรประชาชน (ID Card)', desc: 'เห็นชื่อ-นามสกุล และเลขประจำตัวชัดเจน' },
+                        { key: 'idCardWithFace', name: '2. รูปถ่ายคู่กับบัตรประชาชน', desc: 'รูปเซลฟี่ถือบัตรประชาชนข้างใบหน้าของคุณเพื่อตรวจสอบตัวตน' },
+                        { key: 'agentLicense', name: '3. ใบประกาศ/หลักฐานตัวแทน N3', desc: 'หลักฐานจดทะเบียนหรือใบสัญญาตัวแทนจำหน่ายจำลอง' },
+                        { key: 'shopPhoto', name: '4. รูปถ่ายหน้าร้าน / จุดบริการ', desc: 'แผงค้า บอร์ดจุดวาง สัญลักษณ์จำหน่ายของร้าน' }
+                      ].map((doc) => {
+                        const isUploaded = (uploadedDocs as any)[doc.key];
+                        return (
+                          <div key={doc.key} className="bg-white border-2 border-slate-200 p-3.5 rounded-2xl space-y-3 hover:border-emerald-200 transition-all">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h4 className="text-xs font-black text-slate-800 leading-tight">{doc.name}</h4>
+                                <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">{doc.desc}</p>
+                              </div>
+                              <span className={`text-[8.5px] font-black px-2 py-0.5 rounded-md shrink-0 flex items-center gap-1 ${isUploaded ? 'bg-emerald-50 border border-emerald-100 text-emerald-700' : 'bg-slate-100 border border-slate-150 text-slate-500'}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${isUploaded ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                                {isUploaded ? 'อัปโหลดแล้ว' : 'ยังไม่แนบ'}
+                              </span>
+                            </div>
+
+                            <div className="flex gap-2 border-t border-slate-100 pt-3">
+                              <button
+                                onClick={() => {
+                                  setUploadedDocs(prev => ({ ...prev, [doc.key]: true }));
+                                  showToast(`📸 แนบไฟล์ภาพ ${doc.name.split(' ')[1]} สำเร็จ!`);
+                                }}
+                                className={`flex-1 py-2 rounded-xl text-[10px] font-black flex items-center justify-center gap-1 cursor-pointer ${isUploaded ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-150'}`}
+                              >
+                                {isUploaded ? '👉 อัปโหลดรูปใหม่' : '📸 อัปโหลดรูปภาพ'}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setPreviewDoc(doc.key);
+                                }}
+                                className="px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-xl text-[10px] font-black border border-slate-200"
+                              >
+                                ดูตัวอย่าง
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex gap-2.5 pt-2">
+                      <button 
+                        onClick={() => setRegisterStep(2)}
+                        className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-black text-center"
+                      >
+                        ย้อนกลับ
+                      </button>
+                      <button 
+                        onClick={handleNextStep3}
+                        className="flex-[2] py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1 shadow-sm"
+                      >
+                        <span>ถัดไป</span>
+                        <ChevronRight size={16} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {registerStep === 4 && (
+                  <div className="space-y-4">
+                    <div className="space-y-3 shrink-0">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[11px] bg-emerald-100 text-emerald-800 font-black px-2.5 py-1 rounded-full">
+                          ขั้นตอนที่ 4 จาก 4
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-bold">ยื่นใบสมัครตรวจสอบ</span>
+                      </div>
+                      <h2 className="font-black text-slate-900 text-base leading-tight">ตรวจสอบสรุปความถูกต้อง</h2>
+                      {/* Progress pill bar */}
+                      <div className="flex gap-1.5">
+                        {[1, 2, 3, 4].map(s => (
+                          <div 
+                            key={s} 
+                            className={`h-2 flex-1 rounded-full transition-all duration-300 ${s <= 4 ? 'bg-emerald-600' : 'bg-slate-200'}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {authError && (
+                      <div className="bg-rose-50 border border-rose-200 p-3 rounded-2xl text-rose-700 text-xs font-black flex items-center gap-2">
+                        <AlertCircle size={16} className="shrink-0" />
+                        <span>{authError}</span>
+                      </div>
+                    )}
+
+                    <div className="bg-white border-2 border-slate-200 rounded-2xl p-4 space-y-3 text-left">
+                      <h3 className="font-black text-slate-900 text-xs border-b pb-1.5 flex items-center gap-1.5 text-emerald-800">
+                        📋 สรุปความถูกต้องใบสมัคร
+                      </h3>
+                      <div className="space-y-2 text-[11px] leading-relaxed">
+                        <div className="flex justify-between border-b border-dashed pb-1.5">
+                          <span className="text-slate-400 font-bold">ชื่อตัวแทนจำหน่าย:</span>
+                          <span className="text-slate-800 font-black">{regName}</span>
+                        </div>
+                        <div className="flex justify-between border-b border-dashed pb-1.5">
+                          <span className="text-slate-400 font-bold">เบอร์โทรติดต่อ:</span>
+                          <span className="text-slate-800 font-black font-mono">{regPhone}</span>
+                        </div>
+                        <div className="flex justify-between border-b border-dashed pb-1.5">
+                          <span className="text-slate-400 font-bold">อีเมล:</span>
+                          <span className="text-slate-800 font-black font-mono">{regEmail}</span>
+                        </div>
+                        <div className="flex justify-between border-b border-dashed pb-1.5">
+                          <span className="text-slate-400 font-bold">ชื่อหน้าร้าน:</span>
+                          <span className="text-emerald-800 font-black">{regShopName}</span>
+                        </div>
+                        <div className="flex justify-between border-b border-dashed pb-1.5">
+                          <span className="text-slate-400 font-bold">ทำเลบริการ:</span>
+                          <span className="text-slate-800 font-black">{regArea}</span>
+                        </div>
+                        <div className="flex justify-between border-b border-dashed pb-1.5">
+                          <span className="text-slate-400 font-bold">เวลาทำการ:</span>
+                          <span className="text-slate-800 font-black">{regHours}</span>
+                        </div>
+                        <div className="flex justify-between border-b border-dashed pb-1.5">
+                          <span className="text-slate-400 font-bold">เอกสาร KYC:</span>
+                          <span className="text-emerald-700 font-black">อัปโหลดครบแล้ว (ผ่านเกณฑ์)</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400 font-bold">แพ็กเกจสมาชิก:</span>
+                          <span className="bg-emerald-50 border border-emerald-200 text-emerald-800 font-black px-1.5 rounded text-[9px]">Basic Agent ⭐️</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <label className="flex items-start gap-2.5 bg-white p-3.5 rounded-2xl border-2 border-slate-200 cursor-pointer select-none">
+                      <input 
+                        type="checkbox"
+                        checked={confirmInfoCorrect}
+                        onChange={(e) => setConfirmInfoCorrect(e.target.checked)}
+                        className="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 scale-110 shrink-0 cursor-pointer"
+                      />
+                      <span className="text-[10px] text-slate-600 font-bold leading-normal">
+                        ข้าพเจ้ายินดีส่งเอกสารดังกล่าวข้างต้น และยืนยันว่าข้อมูลและเอกสารทั้งหมดที่ส่งมานี้เป็นข้อมูลจริง ถูกต้อง และสามารถตรวจสอบสิทธิ์ได้
+                      </span>
+                    </label>
+
+                    <div className="flex gap-2.5 pt-2">
+                      <button 
+                        onClick={() => setRegisterStep(3)}
+                        className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-black text-center"
+                      >
+                        ย้อนกลับ
+                      </button>
+                      <button 
+                        onClick={handleSubmitRegister}
+                        className="flex-[2] py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-md flex items-center justify-center gap-1"
+                      >
+                        <CheckCircle size={16} className="stroke-[2.5px]" />
+                        <span>ส่งใบสมัครและตรวจสอบ</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Document preview modal overlay inside mobile viewport */}
+              {previewDoc && (
+                <div className="absolute inset-0 bg-black/80 flex justify-center items-center p-4 z-50 font-prompt">
+                  <div className="bg-white rounded-3xl w-full max-w-[320px] overflow-hidden border border-slate-100 shadow-2xl relative">
+                    <button 
+                      onClick={() => setPreviewDoc(null)}
+                      className="absolute top-3 right-3 bg-slate-100 hover:bg-slate-200 text-slate-500 p-2 rounded-full cursor-pointer transition-colors"
+                    >
+                      <X size={16} className="stroke-[2.5px]" />
+                    </button>
+                    <div className="p-4 bg-gradient-to-r from-emerald-700 to-emerald-800 text-white">
+                      <h3 className="font-black text-xs leading-none">ตัวอย่างรูปเอกสารจำลอง</h3>
+                      <p className="text-[9px] text-emerald-100 mt-1 leading-none">เอกสารอ้างอิงเพื่อสาธิตความพร้อมระบบ</p>
+                    </div>
+                    <div className="p-5 flex flex-col justify-center items-center text-center space-y-4">
+                      <div className="w-full h-32 bg-slate-100 rounded-2xl border-2 border-dashed border-slate-300 flex flex-col justify-center items-center text-slate-400 text-center p-3 relative overflow-hidden">
+                        {previewDoc === 'idCard' && (
+                          <div className="space-y-1">
+                            <FileText size={32} className="mx-auto text-emerald-600" />
+                            <span className="text-[9px] font-mono block text-slate-600">CARD_ID_110020038XXXX_TEMP.PNG</span>
+                            <span className="text-[8px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded font-black border border-emerald-100">ตรวจสอบความถูกต้องเรียบร้อย</span>
+                          </div>
+                        )}
+                        {previewDoc === 'idCardWithFace' && (
+                          <div className="space-y-1">
+                            <ImageIcon size={32} className="mx-auto text-emerald-600" />
+                            <span className="text-[9px] font-mono block text-slate-600">SELFIE_WITH_CARD_VERIFY.JPG</span>
+                            <span className="text-[8px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded font-black border border-emerald-100">เซลฟี่ตรงกับเจ้าของชื่อ</span>
+                          </div>
+                        )}
+                        {previewDoc === 'agentLicense' && (
+                          <div className="space-y-1">
+                            <FileText size={32} className="mx-auto text-emerald-600" />
+                            <span className="text-[9px] font-mono block text-slate-600">N3_OFFICIAL_LICENSE_00124.PDF</span>
+                            <span className="text-[8px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded font-black border border-emerald-100">หลักฐานจดทะเบียนใบอนุมัติ</span>
+                          </div>
+                        )}
+                        {previewDoc === 'shopPhoto' && (
+                          <div className="space-y-1">
+                            <ImageIcon size={32} className="mx-auto text-emerald-600" />
+                            <span className="text-[9px] font-mono block text-slate-600">STOREFRONT_COMMUNITY_SETUP.JPG</span>
+                            <span className="text-[8px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded font-black border border-emerald-100">บอร์ดหน้าร้านและจุดแผงค้า</span>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-slate-500 font-semibold leading-relaxed">
+                        ระบบอัปโหลดและจับภาพอัตโนมัติจำลองเสร็จสมบูรณ์ คุณสามารถตรวจสอบข้อมูลการจองหลักฐานนี้ในแผงผู้ตรวจการสำหรับผู้ดูแลระบบ
+                      </p>
+                      <button 
+                        onClick={() => setPreviewDoc(null)}
+                        className="w-full py-2.5 bg-slate-900 text-white font-black text-xs rounded-xl cursor-pointer"
+                      >
+                        ปิดหน้าต่าง
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        ) : currentAgent.status !== 'Approved' ? (
+          /* VERIFICATION STATUS SCREENS FOR LOGGED IN USERS WHO ARE PENDING REVIEW OR REJECTED */
+          <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 relative font-prompt">
+            {/* Header */}
+            <header className="bg-emerald-800 text-white px-4 py-4 flex items-center justify-between shadow-md shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-amber-400 text-slate-950 font-bold text-sm flex items-center justify-center border border-white/20 shadow-inner shrink-0">N3</div>
+                <h1 className="text-sm font-black tracking-tight leading-none text-white">ตรวจสอบสถานะเปิดร้าน</h1>
+              </div>
+              <button 
+                onClick={handleLogout}
+                className="text-[10px] font-black bg-rose-600 hover:bg-rose-700 text-white px-2.5 py-1.5 rounded-lg active:scale-95 transition-transform shrink-0"
+              >
+                ออกจากระบบ
+              </button>
+            </header>
+
+            {/* Content body depending on Pending Review or Need More Info status */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-5">
+              {currentAgent.status === 'Pending Review' ? (
+                /* PENDING REVIEW SCREEN */
+                <div className="space-y-5 text-center">
+                  <div className="bg-white border-2 border-amber-100 rounded-3xl p-5 shadow-xs space-y-4">
+                    <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto border border-amber-100 relative">
+                      <Clock size={32} className="animate-spin" style={{ animationDuration: '3s' }} />
+                      <span className="absolute bottom-0 right-0 w-5 h-5 bg-blue-600 text-white text-[8px] font-bold rounded-full flex items-center justify-center border border-white">N3</span>
+                    </div>
+                    <div>
+                      <h2 className="font-black text-slate-800 text-base leading-snug">ส่งข้อมูลใบสมัครเรียบร้อยแล้ว</h2>
+                      <p className="text-slate-400 text-[10.5px] font-bold mt-1.5 leading-relaxed px-2">
+                        ระบบได้รับข้อมูลใบสมัครตัวแทนจำหน่ายสลากดิจิทัลจำลอง N3 ของคุณแล้ว แอดมินกำลังเร่งตรวจสอบเอกสารและพิจารณาอนุมัติเปิดหน้าร้าน
+                      </p>
+                    </div>
+                    <div className="inline-block bg-amber-50 border border-amber-200 text-amber-800 text-[10.5px] font-black px-4 py-1.5 rounded-full">
+                      ⏳ สถานะใบสมัคร: รอแอดมินพิจารณาอนุมัติ
+                    </div>
+                  </div>
+
+                  {/* Stepper Timeline */}
+                  <div className="bg-white border border-slate-200 rounded-3xl p-5 text-left space-y-4">
+                    <h3 className="font-black text-slate-800 text-xs border-b pb-2">🛣️ แผนภูมิขั้นตอนการดำเนินงาน</h3>
+                    <div className="relative pl-6 space-y-5">
+                      <div className="absolute left-[7px] top-1.5 bottom-1.5 w-0.5 bg-slate-200" />
+                      
+                      {/* Step 1: Submit */}
+                      <div className="relative">
+                        <div className="absolute -left-[23px] w-4 h-4 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center text-[8px] text-white font-black">✓</div>
+                        <div>
+                          <h4 className="text-xs font-black text-emerald-800 leading-none">1. ส่งใบสมัครสำเร็จ</h4>
+                          <p className="text-[9.5px] text-slate-400 mt-1">ส่งประวัติ, ข้อมูลร้านค้า, และอัปโหลด 4 เอกสารคัดกรอง</p>
+                        </div>
+                      </div>
+
+                      {/* Step 2: KYC docs check */}
+                      <div className="relative">
+                        <div className="absolute -left-[23px] w-4 h-4 rounded-full bg-amber-400 border-2 border-white flex items-center justify-center text-[8px] text-slate-950 font-black animate-pulse">●</div>
+                        <div>
+                          <h4 className="text-xs font-black text-amber-700 leading-none">2. ตรวจสอบเอกสาร (ในแผงแอดมิน)</h4>
+                          <p className="text-[9.5px] text-slate-400 mt-1">คุณสามารถสลับไปสิทธิ์ "ผู้ดูแลระบบ" ด้านบนเพื่อกด อนุมัติ/แก้ไข</p>
+                        </div>
+                      </div>
+
+                      {/* Step 3: Admin Approval */}
+                      <div className="relative">
+                        <div className="absolute -left-[23px] w-4 h-4 rounded-full bg-slate-200 border-2 border-white" />
+                        <div>
+                          <h4 className="text-xs font-black text-slate-400 leading-none">3. แอดมินสิทธิ์อนุมัติเรียบร้อย</h4>
+                          <p className="text-[9.5px] text-slate-400 mt-1">เมื่อแอดมินอนุมัติในแผงผู้ดูแล บัญชีนี้จะเข้าสู่หน้าเปิดแผงได้ทันที</p>
+                        </div>
+                      </div>
+
+                      {/* Step 4: Approved */}
+                      <div className="relative">
+                        <div className="absolute -left-[23px] w-4 h-4 rounded-full bg-slate-200 border-2 border-white" />
+                        <div>
+                          <h4 className="text-xs font-black text-slate-400 leading-none">4. เริ่มใช้งานแผงตัวแทนขาย</h4>
+                          <p className="text-[9.5px] text-slate-400 mt-1">เริ่มรับยอดจองสลากดิจิทัล จัดเก็บเงิน ปริ้นคิวอาร์</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Button actions */}
+                  <div className="space-y-2 pt-2">
+                    <button 
+                      onClick={() => {
+                        showToast("🔄 อัปเดตข้อมูลสถานะใบสมัครเรียบร้อยแล้ว!");
+                      }}
+                      className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <span>🔄 ตรวจสอบสถานะอีกครั้ง</span>
+                    </button>
+                    <button 
+                      onClick={onBackToRoles}
+                      className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-2xl text-xs font-black cursor-pointer"
+                    >
+                      กลับหน้าเลือกบทบาท
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* NEED MORE INFO / NEED EDIT STATE */
+                <div className="space-y-5">
+                  <div className="bg-white border-2 border-rose-100 rounded-3xl p-5 shadow-xs text-center space-y-4">
+                    <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto border border-rose-100">
+                      <AlertCircle size={32} className="stroke-[2.5px]" />
+                    </div>
+                    <div>
+                      <h2 className="font-black text-slate-800 text-base leading-snug">ต้องแก้ไขข้อมูลใบสมัครของคุณ</h2>
+                      <p className="text-slate-400 text-[10px] font-bold mt-1 px-1">
+                        เนื่องจากเอกสารที่ส่งมาระหว่างลงทะเบียนไม่ผ่านการตรวจสอบ กรุณาอัปโหลดเอกสารใหม่ให้ถูกต้อง
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Admin feedback banner */}
+                  <div className="bg-rose-50 border-2 border-rose-200 p-4.5 rounded-3xl space-y-2">
+                    <span className="text-[10px] font-black text-rose-800 block">💬 บันทึกข้อความชี้แจงจากทีมผู้ตรวจ (แอดมิน):</span>
+                    <p className="text-slate-700 text-[11px] font-bold leading-relaxed bg-white/70 p-3 rounded-xl border border-rose-100">
+                      "{currentAgent.notes || "เอกสารรูปถ่ายคู่บัตรประชาชนไม่ชัดเจน กรุณาถ่ายในบริเวณที่มีแสงสว่างพอและเห็นเลขบัตรถูกต้อง"}"
+                    </p>
+                  </div>
+
+                  {/* Simple document uploader */}
+                  <div className="bg-white border border-slate-200 rounded-3xl p-4.5 space-y-3.5">
+                    <span className="text-xs font-black text-slate-800 block">📸 แก้ไขและส่งเอกสารแนบ:</span>
+                    
+                    <div className="border border-emerald-100 bg-emerald-50/40 p-3.5 rounded-2xl flex items-center justify-between">
+                      <div className="min-w-0 pr-2">
+                        <h4 className="text-xs font-black text-emerald-900 leading-snug">ถ่ายภาพเซลฟี่ถือบัตรประชาชนใหม่</h4>
+                        <p className="text-[9.5px] text-slate-400 mt-0.5 leading-normal">อัปโหลดไฟล์ที่สว่าง ชัดเจน ไม่เบลอ หรือมืดสลัว</p>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          showToast("📸 อัปโหลดรูปภาพทดแทนสำเร็จ!");
+                        }}
+                        className="py-2 px-3.5 bg-emerald-600 text-white hover:bg-emerald-700 text-[10px] font-black rounded-xl transition-all shadow-sm cursor-pointer"
+                      >
+                        📸 อัปโหลดใหม่
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Button actions */}
+                  <div className="space-y-2 pt-1">
+                    <button 
+                      onClick={() => {
+                        const updated = agentAccounts.map(acc => {
+                          if (acc.phone === currentAgent.phone) {
+                            return { ...acc, status: 'Pending Review', notes: '' };
+                          }
+                          return acc;
+                        });
+                        onUpdateAgentAccounts(updated);
+                        showToast("🚀 อัปเดตและส่งใบสมัครตรวจสอบอีกครั้งสำเร็จ!");
+                      }}
+                      className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <CheckCircle size={16} className="stroke-[2.5px]" />
+                      <span>ส่งใบสมัครเพื่อตรวจสอบอีกครั้ง</span>
+                    </button>
+                    <button 
+                      onClick={onBackToRoles}
+                      className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-2xl text-xs font-black cursor-pointer"
+                    >
+                      กลับหน้าเลือกบทบาท
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : !hasAcknowledgedApproval ? (
+          /* GLORIOUS APPROVED ACKNOWLEDGMENT CONGRATULATIONS SCREEN */
+          <div className="flex-1 flex flex-col overflow-hidden bg-gradient-to-b from-emerald-800 via-emerald-900 to-slate-900 text-white relative font-prompt">
+            {/* Success Animation Area */}
+            <div className="flex-1 flex flex-col justify-center items-center p-6 text-center space-y-6">
+              <div className="w-20 h-20 bg-amber-400 text-slate-950 rounded-full flex items-center justify-center border-4 border-white/20 shadow-2xl relative animate-bounce">
+                <ShieldCheck size={48} className="stroke-[2.5px]" />
+                <span className="absolute -top-1 -right-1 bg-emerald-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full leading-none">N3 PASS</span>
+              </div>
+
+              <div className="space-y-2">
+                <span className="text-[10px] bg-emerald-800 border border-emerald-700 text-amber-300 font-black px-3 py-1 rounded-full uppercase tracking-wider">
+                  🎉 ตรวจสอบผ่านอนุมัติแล้ว
+                </span>
+                <h2 className="font-black text-2xl text-white tracking-tight leading-none pt-2">ยืนยันตัวตนสำเร็จ!</h2>
+                <p className="text-emerald-100 text-[11px] leading-relaxed px-3 pt-1">
+                  ร้านตัวแทนจำหน่าย <span className="font-black text-amber-400">"{currentAgent.shopName}"</span> ได้รับการอนุมัติสิทธิ์ลงทะเบียน N3 Agent เรียบร้อยแล้ว ยินดีต้อนรับเข้าสู่แพลตฟอร์มรับจอง
+                </p>
+              </div>
+
+              {/* Summary Details */}
+              <div className="w-full bg-white/10 rounded-2xl p-4 text-left border border-white/10 space-y-2 text-xs font-medium">
+                <div className="flex justify-between">
+                  <span className="opacity-60">ชื่อร้านจำหน่าย:</span>
+                  <span className="font-bold text-amber-300">{currentAgent.shopName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="opacity-60">รหัสผู้สมัครสิทธิ์:</span>
+                  <span className="font-bold font-mono">{currentAgent.id}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="opacity-60">ประเภทแผง:</span>
+                  <span className="bg-amber-400 text-slate-950 font-black text-[9px] px-1.5 rounded leading-normal">Basic Agent ⭐️</span>
+                </div>
+              </div>
+
+              <button 
+                onClick={handleEnterDashboard}
+                className="w-full py-4 bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-sm rounded-2xl shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <span>เข้าสู่ระบบจัดการร้านค้า</span>
+                <ChevronRight size={18} className="stroke-[3px]" />
+              </button>
+            </div>
+          </div>
         ) : (
           /* STANDARD AGENT VIEW SCREENS */
           <>
@@ -390,16 +1396,24 @@ export default function AgentView({ onBackToRoles }: AgentViewProps) {
                 </div>
               </div>
               
-              <button 
-                id="btn-switch-role"
-                onClick={onBackToRoles}
-                className="text-[10px] font-prompt font-black bg-amber-400 hover:bg-amber-500 active:bg-amber-600 text-slate-950 px-3 py-1.5 rounded-lg active:scale-95 transition-transform cursor-pointer shadow-sm shrink-0 whitespace-nowrap"
-              >
-                เปลี่ยนบทบาท
-              </button>
+              <div className="flex gap-1 shrink-0">
+                <button 
+                  onClick={handleLogout}
+                  className="text-[9px] font-prompt font-black bg-rose-600 hover:bg-rose-700 text-white px-2 py-1.5 rounded-lg active:scale-95 transition-transform cursor-pointer shadow-sm shrink-0 whitespace-nowrap"
+                >
+                  ออกระบบ
+                </button>
+                <button 
+                  id="btn-switch-role"
+                  onClick={onBackToRoles}
+                  className="text-[9px] font-prompt font-black bg-amber-400 hover:bg-amber-500 active:bg-amber-600 text-slate-950 px-2 py-1.5 rounded-lg active:scale-95 transition-transform cursor-pointer shadow-sm shrink-0 whitespace-nowrap"
+                >
+                  เปลี่ยนบทบาท
+                </button>
+              </div>
             </header>
 
-        {/* Dynamic toast banner */}
+        {/* Global Toast Overlay */}
         <AnimatePresence>
           {toastMessage && (
             <motion.div 
@@ -409,7 +1423,7 @@ export default function AgentView({ onBackToRoles }: AgentViewProps) {
               className="fixed top-16 left-1/2 -translate-x-1/2 z-50 w-[92%] bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 border-2 border-emerald-500"
             >
               <ShieldCheck className="text-emerald-400 shrink-0 w-6 h-6" />
-              <span className="font-bold text-xs leading-snug">{toastMessage}</span>
+              <span className="font-bold text-xs leading-snug font-prompt">{toastMessage}</span>
             </motion.div>
           )}
         </AnimatePresence>
@@ -432,13 +1446,13 @@ export default function AgentView({ onBackToRoles }: AgentViewProps) {
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 overflow-hidden shrink-0">
                     <img 
-                      src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=150&auto=format&fit=crop" 
+                      src="/src/assets/images/shop_je_maew_n3_1783428973348.jpg" 
                       className="w-full h-full object-cover" 
                       alt="Agent profile" 
                     />
                   </div>
                   <div>
-                    <h3 className="font-bold text-base text-slate-900 leading-tight">ร้านเจ๊นุช N3</h3>
+                    <h3 className="font-bold text-base text-slate-900 leading-tight">ร้านเจ๊แมว N3</h3>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <span className="text-[10px] text-slate-500 font-mono font-bold">รหัส: AG-001245</span>
                       <span className="text-[9px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.2 rounded-md font-bold">
@@ -689,7 +1703,7 @@ export default function AgentView({ onBackToRoles }: AgentViewProps) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-xs text-slate-900">มีลูกค้าเพิ่มร้านของคุณเป็นร้านโปรด</p>
-                      <p className="text-[10px] text-slate-400 truncate">คุณวิภาดา แสนดี บันทึกร้านเจ๊นุชเป็นร้านค้าประจำเป็นคนล่าสุด</p>
+                      <p className="text-[10px] text-slate-400 truncate">คุณวิภาดา แสนดี บันทึกร้านเจ๊แมวเป็นร้านค้าประจำเป็นคนล่าสุด</p>
                     </div>
                     <button 
                       onClick={() => setActiveTab('customers')}
